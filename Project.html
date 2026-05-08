@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlowBoard — Smart Kanban Task Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#f5f2ec;
+  --bg2:#fdfcfa;
+  --surface:#ffffff;
+  --border:#e8e3d9;
+  --border2:#d4cdc0;
+  --text:#1a1714;
+  --muted:#8c8479;
+  --muted2:#b5afa6;
+  --display:'Playfair Display',serif;
+  --body:'DM Sans',sans-serif;
+
+  --todo-bg:#eef4ff;
+  --todo-accent:#3b82f6;
+  --todo-light:#dbeafe;
+
+  --prog-bg:#fffbeb;
+  --prog-accent:#f59e0b;
+  --prog-light:#fde68a;
+
+  --review-bg:#f5f3ff;
+  --review-accent:#8b5cf6;
+  --review-light:#ddd6fe;
+
+  --done-bg:#f0fdf4;
+  --done-accent:#22c55e;
+  --done-light:#bbf7d0;
+
+  --prio-critical:#ef4444;
+  --prio-high:#f97316;
+  --prio-medium:#eab308;
+  --prio-low:#22c55e;
+
+  --shadow:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+  --shadow-drag:0 12px 32px rgba(0,0,0,.15), 0 4px 8px rgba(0,0,0,.08);
+}
+
+html{font-size:16px}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--body);
+  min-height:100vh;
+  font-weight:400;
+}
+
+/* ── HEADER ── */
+header{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:0 2rem;
+  height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+}
+
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{
+  width:30px;height:30px;
+  background:var(--text);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:14px;
+  font-family:var(--display);font-weight:700;
+}
+.logo-name{
+  font-family:var(--display);
+  font-size:20px;font-weight:700;
+  letter-spacing:-.3px;
+}
+.logo-name em{color:var(--todo-accent);font-style:normal;}
+
+.header-right{display:flex;align-items:center;gap:.75rem}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--body);font-size:13px;font-weight:500;
+  padding:8px 14px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text);transition:all .15s;white-space:nowrap;
+}
+.btn:hover{background:var(--bg);border-color:var(--border2)}
+.btn-primary{
+  background:var(--text);color:#fff;border-color:var(--text);
+}
+.btn-primary:hover{background:#333;border-color:#333}
+
+.search-wrap{position:relative}
+.search-wrap input{
+  background:var(--bg);
+  border:1px solid var(--border);
+  font-family:var(--body);font-size:13px;
+  padding:8px 12px 8px 34px;
+  border-radius:8px;width:220px;outline:none;
+  color:var(--text);transition:border-color .15s,width .2s;
+}
+.search-wrap input:focus{border-color:var(--todo-accent);width:260px}
+.search-wrap input::placeholder{color:var(--muted2)}
+.search-ico{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  color:var(--muted2);pointer-events:none;
+}
+
+/* ── SUBBAR ── */
+.subbar{
+  padding:.75rem 2rem;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:1rem;flex-wrap:wrap;
+}
+.board-title{
+  font-family:var(--display);
+  font-size:26px;font-weight:700;
+  letter-spacing:-.5px;
+}
+.board-meta{font-size:13px;color:var(--muted);margin-top:2px}
+
+.sort-wrap{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.sort-wrap select{
+  font-family:var(--body);font-size:12px;font-weight:500;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--text);padding:6px 10px;border-radius:7px;
+  outline:none;cursor:pointer;
+}
+
+/* ── BOARD ── */
+.board{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:1.25rem;
+  padding:1.25rem 2rem 2rem;
+  align-items:start;
+}
+
+/* ── COLUMN ── */
+.column{
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:var(--surface);
+  overflow:hidden;
+  transition:box-shadow .2s;
+}
+.column.drag-over{
+  box-shadow:0 0 0 2px var(--todo-accent);
+}
+
+.col-header{
+  padding:14px 16px 12px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.col-title-wrap{display:flex;align-items:center;gap:8px}
+.col-dot{width:9px;height:9px;border-radius:50%}
+.col-title{font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+.col-count{
+  font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;
+}
+
+.col-progress{padding:0 16px 12px;border-bottom:1px solid var(--border)}
+.progress-bar{
+  height:3px;border-radius:99px;
+  margin-top:10px;
+}
+.progress-fill{height:100%;border-radius:99px;transition:width .4s ease}
+.progress-label{
+  display:flex;justify-content:space-between;
+  font-size:10px;color:var(--muted2);margin-top:4px;
+}
+
+/* Column color themes */
+.col-todo .col-dot{background:var(--todo-accent)}
+.col-todo .col-count{background:var(--todo-light);color:var(--todo-accent)}
+.col-todo .progress-bar{background:var(--todo-light)}
+.col-todo .progress-fill{background:var(--todo-accent)}
+
+.col-progress-col .col-dot{background:var(--prog-accent)}
+.col-progress-col .col-count{background:var(--prog-light);color:#92400e}
+.col-progress-col .progress-bar{background:var(--prog-light)}
+.col-progress-col .progress-fill{background:var(--prog-accent)}
+
+.col-review .col-dot{background:var(--review-accent)}
+.col-review .col-count{background:var(--review-light);color:#5b21b6}
+.col-review .progress-bar{background:var(--review-light)}
+.col-review .progress-fill{background:var(--review-accent)}
+
+.col-done .col-dot{background:var(--done-accent)}
+.col-done .col-count{background:var(--done-light);color:#15803d}
+.col-done .progress-bar{background:var(--done-light)}
+.col-done .progress-fill{background:var(--done-accent)}
+
+/* ── CARDS AREA ── */
+.cards-area{
+  padding:10px 10px;
+  min-height:120px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.cards-area.drag-active{
+  background:rgba(59,130,246,.04);
+  border-radius:8px;
+}
+
+/* ── TASK CARD ── */
+.task-card{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:12px 14px;
+  cursor:grab;
+  transition:box-shadow .15s,transform .15s,opacity .15s;
+  position:relative;
+  animation:slideIn .2s ease;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.task-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px)}
+.task-card.dragging{
+  opacity:.5;cursor:grabbing;
+  box-shadow:var(--shadow-drag);transform:rotate(1.5deg) scale(1.02);
+}
+.task-card.col-done-card{opacity:.75}
+
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.card-tags{display:flex;flex-wrap:wrap;gap:4px}
+.tag{
+  font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;
+  background:var(--bg);border:1px solid var(--border);color:var(--muted);
+  letter-spacing:.03em;text-transform:uppercase;
+}
+.card-delete{
+  background:none;border:none;cursor:pointer;
+  color:var(--muted2);font-size:16px;line-height:1;
+  padding:0 2px;transition:color .12s;flex-shrink:0;
+  font-family:var(--body);
+}
+.card-delete:hover{color:var(--prio-critical)}
+
+.card-title{
+  font-size:14px;font-weight:500;line-height:1.45;
+  margin-bottom:10px;color:var(--text);
+}
+
+.card-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
+
+.priority-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.prio-critical{background:#fef2f2;color:var(--prio-critical)}
+.prio-high    {background:#fff7ed;color:var(--prio-high)}
+.prio-medium  {background:#fefce8;color:#a16207}
+.prio-low     {background:#f0fdf4;color:var(--prio-low)}
+
+.priority-score{
+  font-size:10px;color:var(--muted);
+  font-weight:500;letter-spacing:.02em;
+}
+
+.deadline-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10px;font-weight:500;padding:3px 7px;border-radius:4px;
+}
+.deadline-ok      {background:#f0fdf4;color:#15803d}
+.deadline-soon    {background:#fffbeb;color:#92400e}
+.deadline-overdue {background:#fef2f2;color:var(--prio-critical)}
+
+/* ── ADD TASK BTN ── */
+.add-task-btn{
+  width:100%;
+  background:none;
+  border:1.5px dashed var(--border2);
+  border-radius:8px;
+  padding:9px 14px;
+  font-family:var(--body);font-size:13px;
+  color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .15s;margin:0 0 10px;
+}
+.add-task-btn:hover{
+  border-color:var(--todo-accent);
+  color:var(--todo-accent);
+  background:var(--todo-bg);
+}
+
+/* ── MODAL ── */
+.modal-backdrop{
+  position:fixed;inset:0;
+  background:rgba(20,18,14,.5);
+  backdrop-filter:blur(3px);
+  z-index:500;
+  display:flex;align-items:center;justify-content:center;
+  padding:1rem;
+  animation:fadeIn .15s ease;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-backdrop.hidden{display:none}
+
+.modal{
+  background:var(--surface);
+  border-radius:16px;
+  box-shadow:var(--shadow-drag);
+  width:100%;max-width:480px;
+  padding:2rem;
+  animation:popIn .2s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes popIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+
+.modal h2{
+  font-family:var(--display);font-size:22px;font-weight:700;
+  margin-bottom:1.5rem;letter-spacing:-.3px;
+}
+
+.form-group{margin-bottom:1rem}
+.form-group label{
+  display:block;font-size:12px;font-weight:600;
+  color:var(--muted);letter-spacing:.05em;
+  text-transform:uppercase;margin-bottom:6px;
+}
+.form-group input,
+.form-group textarea,
+.form-group select{
+  width:100%;
+  font-family:var(--body);font-size:14px;
+  background:var(--bg);
+  border:1px solid var(--border);color:var(--text);
+  padding:10px 12px;border-radius:8px;outline:none;
+  transition:border-color .15s;
+  -webkit-appearance:none;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus{border-color:var(--todo-accent)}
+.form-group textarea{resize:vertical;min-height:70px;line-height:1.5}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+.modal-footer{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.5rem}
+
+/* ── EMPTY STATE ── */
+.empty-state{
+  text-align:center;padding:2rem 1rem;
+  color:var(--muted2);font-size:13px;line-height:1.6;
+}
+.empty-state svg{margin:0 auto 8px;display:block;opacity:.3}
+
+/* ── SCORE LEGEND ── */
+.score-legend{
+  padding:6px 16px 14px;
+  font-size:11px;color:var(--muted);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;
+}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:2rem;right:2rem;z-index:999;
+  background:var(--text);color:#fff;
+  font-size:13px;font-weight:500;
+  padding:12px 20px;border-radius:10px;
+  box-shadow:var(--shadow-lg);
+  transform:translateY(10px);opacity:0;
+  transition:all .2s;pointer-events:none;
+}
+.toast.show{transform:none;opacity:1}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.board{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){
+  .board{grid-template-columns:1fr;padding:1rem}
+  .subbar{padding:.75rem 1rem}
+  header{padding:0 1rem}
+  .search-wrap input{width:160px}
+  .search-wrap input:focus{width:180px}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">F</div>
+    <div class="logo-name">Flow<em>Board</em></div>
+  </div>
+  <div class="header-right">
+    <div class="search-wrap">
+      <svg class="search-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-input" placeholder="Search tasks…"/>
+    </div>
+    <button class="btn btn-primary" onclick="openModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      Add Task
+    </button>
+  </div>
+</header>
+
+<!-- SUBBAR -->
+<div class="subbar">
+  <div>
+    <div class="board-title">My Project Board</div>
+    <div class="board-meta" id="board-meta">Loading…</div>
+  </div>
+  <div class="sort-wrap">
+    <span>Sort by</span>
+    <select id="sort-select" onchange="renderAll()">
+      <option value="score">Priority Score ↓</option>
+      <option value="deadline">Deadline ↑</option>
+      <option value="title">Title A–Z</option>
+      <option value="created">Newest first</option>
+    </select>
+  </div>
+</div>
+
+<!-- BOARD -->
+<div class="board" id="board">
+  <div class="column col-todo"     data-col="todo"     ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')"     ondragleave="onDragLeave(event)">
+    <div class="col-header">
+      <div class="col-title-wrap">
+        <div class="col-dot"></div>
+        <div class="col-title">To Do</div>
+      </div>
+      <span class="col-count" id="count-todo">0</span>
+    </div>
+    <div class="col-progress">
+      <div class="progress-bar"><div class="progress-fill" id="prog-todo" style="width:0%"></div></div>
+      <div class="progress-label"><span id="prog-todo-label">0 of 0 done</span></div>
+    </div>
+    <div class="score-legend">⚡ Cards sorted by priority score</div>
+    <div class="cards-area" id="cards-todo"></div>
+    <button class="add-task-btn" onclick="openModal('todo')">＋ Add task</button>
+  </div>
+
+  <div class="column col-progress-col" data-col="inprogress" ondragover="onDragOver(event)" ondrop="onDrop(event,'inprogress')" ondragleave="onDragLeave(event)">
+    <div class="col-header">
+      <div class="col-title-wrap">
+        <div class="col-dot"></div>
+        <div class="col-title">In Progress</div>
+      </div>
+      <span class="col-count" id="count-inprogress">0</span>
+    </div>
+    <div class="col-progress">
+      <div class="progress-bar"><div class="progress-fill" id="prog-inprogress" style="width:0%"></div></div>
+      <div class="progress-label"><span id="prog-inprogress-label">0 of 0 done</span></div>
+    </div>
+    <div class="score-legend">⚡ Cards sorted by priority score</div>
+    <div class="cards-area" id="cards-inprogress"></div>
+    <button class="add-task-btn" onclick="openModal('inprogress')">＋ Add task</button>
+  </div>
+
+  <div class="column col-review" data-col="review" ondragover="onDragOver(event)" ondrop="onDrop(event,'review')" ondragleave="onDragLeave(event)">
+    <div class="col-header">
+      <div class="col-title-wrap">
+        <div class="col-dot"></div>
+        <div class="col-title">Review</div>
+      </div>
+      <span class="col-count" id="count-review">0</span>
+    </div>
+    <div class="col-progress">
+      <div class="progress-bar"><div class="progress-fill" id="prog-review" style="width:0%"></div></div>
+      <div class="progress-label"><span id="prog-review-label">0 of 0 done</span></div>
+    </div>
+    <div class="score-legend">⚡ Cards sorted by priority score</div>
+    <div class="cards-area" id="cards-review"></div>
+    <button class="add-task-btn" onclick="openModal('review')">＋ Add task</button>
+  </div>
+
+  <div class="column col-done" data-col="done" ondragover="onDragOver(event)" ondrop="onDrop(event,'done')" ondragleave="onDragLeave(event)">
+    <div class="col-header">
+      <div class="col-title-wrap">
+        <div class="col-dot"></div>
+        <div class="col-title">Done</div>
+      </div>
+      <span class="col-count" id="count-done">0</span>
+    </div>
+    <div class="col-progress">
+      <div class="progress-bar"><div class="progress-fill" id="prog-done" style="width:0%"></div></div>
+      <div class="progress-label"><span id="prog-done-label">0 of 0 done</span></div>
+    </div>
+    <div class="score-legend">⚡ Cards sorted by priority score</div>
+    <div class="cards-area" id="cards-done"></div>
+    <button class="add-task-btn" onclick="openModal('done')">＋ Add task</button>
+  </div>
+</div>
+
+<!-- ADD TASK MODAL -->
+<div class="modal-backdrop hidden" id="modal-backdrop" onclick="closeModalOnBackdrop(event)">
+  <div class="modal">
+    <h2>Add New Task</h2>
+    <div class="form-group">
+      <label>Task Title *</label>
+      <input type="text" id="f-title" placeholder="What needs to be done?" maxlength="120"/>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="f-desc" placeholder="Optional details…"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="f-priority">
+          <option value="low">🟢 Low</option>
+          <option value="medium" selected>🟡 Medium</option>
+          <option value="high">🟠 High</option>
+          <option value="critical">🔴 Critical</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Column</label>
+        <select id="f-column">
+          <option value="todo">To Do</option>
+          <option value="inprogress">In Progress</option>
+          <option value="review">Review</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Deadline</label>
+        <input type="date" id="f-deadline"/>
+      </div>
+      <div class="form-group">
+        <label>Urgency (1–5)</label>
+        <select id="f-urgency">
+          <option value="1">1 — Not urgent</option>
+          <option value="2">2 — Low urgency</option>
+          <option value="3" selected>3 — Moderate</option>
+          <option value="4">4 — Urgent</option>
+          <option value="5">5 — Very urgent</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Impact (1–5)</label>
+      <select id="f-impact">
+        <option value="1">1 — Minimal impact</option>
+        <option value="2">2 — Low impact</option>
+        <option value="3" selected>3 — Moderate</option>
+        <option value="4">4 — High impact</option>
+        <option value="5">5 — Critical impact</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Tags (comma separated)</label>
+      <input type="text" id="f-tags" placeholder="e.g. design, frontend, bug"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   DATA & STATE
+═══════════════════════════════════════════ */
+const COLS = ['todo','inprogress','review','done'];
+const PRIO_WEIGHT = {critical:4, high:3, medium:2, low:1};
+
+let tasks = JSON.parse(localStorage.getItem('flowboard_tasks') || 'null');
+let dragId = null;
+let searchQuery = '';
+
+/* Seed with demo data on first load */
+if (!tasks) {
+  const today = new Date();
+  const d = (n) => {
+    const dt = new Date(today);
+    dt.setDate(dt.getDate()+n);
+    return dt.toISOString().split('T')[0];
+  };
+  tasks = [
+    {id:uid(),title:'Set up project repository and CI pipeline',desc:'Create GitHub repo, configure GitHub Actions for CI/CD.',priority:'high',urgency:4,impact:5,deadline:d(2),tags:['devops','setup'],column:'todo',created:Date.now()-5e5},
+    {id:uid(),title:'Design wireframes for dashboard',desc:'Create low-fi wireframes in Figma for all main screens.',priority:'medium',urgency:3,impact:4,deadline:d(4),tags:['design','ux'],column:'todo',created:Date.now()-4e5},
+    {id:uid(),title:'Fix critical login bug',desc:'Users are getting 401 errors intermittently on login.',priority:'critical',urgency:5,impact:5,deadline:d(0),tags:['bug','auth'],column:'inprogress',created:Date.now()-3e5},
+    {id:uid(),title:'Implement REST API endpoints',desc:'Build CRUD endpoints for /tasks and /users.',priority:'high',urgency:4,impact:4,deadline:d(5),tags:['backend','api'],column:'inprogress',created:Date.now()-2e5},
+    {id:uid(),title:'Write unit tests for core module',desc:'Aim for 80%+ coverage on the business logic layer.',priority:'medium',urgency:2,impact:4,deadline:d(8),tags:['testing'],column:'review',created:Date.now()-1e5},
+    {id:uid(),title:'Update README documentation',desc:'Add setup instructions and API docs to README.',priority:'low',urgency:1,impact:2,deadline:d(14),tags:['docs'],column:'done',created:Date.now()-5e4},
+    {id:uid(),title:'Code review for PR #42',desc:'Review pull request from teammate.',priority:'medium',urgency:3,impact:3,deadline:d(1),tags:['review'],column:'review',created:Date.now()-8e4},
+  ];
+}
+
+function uid(){return '_'+Math.random().toString(36).slice(2,10)}
+function save(){localStorage.setItem('flowboard_tasks',JSON.stringify(tasks))}
+
+/* ═══════════════════════════════════════════
+   PRIORITY SCORE ALGORITHM
+   Score = (urgency × 0.4) + (impact × 0.4) + (priorityWeight × 0.2) × 25
+   Boosted by deadline proximity (overdue = +30, ≤2d = +20, ≤5d = +10)
+═══════════════════════════════════════════ */
+function calcScore(task) {
+  const base = (task.urgency * 0.4 + task.impact * 0.4 + PRIO_WEIGHT[task.priority] * 0.2) * 25;
+  let boost = 0;
+  if (task.deadline) {
+    const diff = Math.ceil((new Date(task.deadline) - new Date()) / 86400000);
+    if (diff < 0)      boost = 30;
+    else if (diff <= 2) boost = 20;
+    else if (diff <= 5) boost = 10;
+  }
+  return Math.min(100, Math.round(base + boost));
+}
+
+/* ═══════════════════════════════════════════
+   MULTI-KEY SORT
+═══════════════════════════════════════════ */
+function sortTasks(arr) {
+  const mode = document.getElementById('sort-select').value;
+  return [...arr].sort((a,b) => {
+    if (mode === 'score')    return calcScore(b) - calcScore(a);
+    if (mode === 'deadline') {
+      if (!a.deadline && !b.deadline) return 0;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline) - new Date(b.deadline);
+    }
+    if (mode === 'title')   return a.title.localeCompare(b.title);
+    if (mode === 'created') return b.created - a.created;
+    return 0;
+  });
+}
+
+/* ═══════════════════════════════════════════
+   DEADLINE HELPER
+═══════════════════════════════════════════ */
+function deadlineInfo(dl) {
+  if (!dl) return null;
+  const diff = Math.ceil((new Date(dl) - new Date()) / 86400000);
+  if (diff < 0)      return {label:`${Math.abs(diff)}d overdue`, cls:'deadline-overdue'};
+  if (diff === 0)    return {label:'Due today',                   cls:'deadline-soon'};
+  if (diff <= 3)     return {label:`${diff}d left`,               cls:'deadline-soon'};
+  return              {label:`${diff}d left`,                     cls:'deadline-ok'};
+}
+
+/* ═══════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════ */
+function renderAll() {
+  const totalTasks = tasks.length;
+  const doneTasks  = tasks.filter(t => t.column === 'done').length;
+
+  COLS.forEach(col => {
+    let colTasks = tasks.filter(t => t.column === col);
+    if (searchQuery) {
+      colTasks = colTasks.filter(t =>
+        t.title.toLowerCase().includes(searchQuery) ||
+        (t.desc||'').toLowerCase().includes(searchQuery) ||
+        (t.tags||[]).some(tag => tag.includes(searchQuery))
+      );
+    }
+    colTasks = sortTasks(colTasks);
+
+    const area = document.getElementById('cards-'+col);
+    area.innerHTML = '';
+
+    if (colTasks.length === 0) {
+      area.innerHTML = `<div class="empty-state">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12h6M12 9v6"/></svg>
+        ${searchQuery ? 'No matches' : 'No tasks yet'}
+      </div>`;
+    } else {
+      colTasks.forEach(task => area.appendChild(buildCard(task)));
+    }
+
+    document.getElementById('count-'+col).textContent = colTasks.length;
+    const allColTasks = tasks.filter(t => t.column === col).length;
+    const doneColTasks = col === 'done' ? allColTasks : 0;
+    const pct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+    document.getElementById('prog-'+col).style.width = pct + '%';
+    document.getElementById('prog-'+col+'-label').textContent = `${doneTasks} of ${totalTasks} done (${pct}%)`;
+  });
+
+  document.getElementById('board-meta').textContent =
+    `${totalTasks} task${totalTasks !== 1 ? 's' : ''} · ${doneTasks} completed · ${totalTasks - doneTasks} remaining`;
+}
+
+function buildCard(task) {
+  const score = calcScore(task);
+  const dl    = deadlineInfo(task.deadline);
+  const prioMap = {critical:'🔴 Critical',high:'🟠 High',medium:'🟡 Medium',low:'🟢 Low'};
+
+  const el = document.createElement('div');
+  el.className = 'task-card' + (task.column === 'done' ? ' col-done-card' : '');
+  el.draggable = true;
+  el.dataset.id = task.id;
+
+  const tagsHtml = (task.tags||[]).filter(Boolean)
+    .map(t => `<span class="tag">${t.trim()}</span>`).join('');
+
+  el.innerHTML = `
+    <div class="card-top">
+      <div class="card-tags">${tagsHtml}</div>
+      <button class="card-delete" onclick="deleteTask('${task.id}')" title="Delete task">×</button>
+    </div>
+    <div class="card-title">${escHtml(task.title)}</div>
+    <div class="card-footer">
+      <span class="priority-badge prio-${task.priority}">${prioMap[task.priority]}</span>
+      <span class="priority-score">Score: ${score}</span>
+      ${dl ? `<span class="deadline-badge ${dl.cls}">📅 ${dl.label}</span>` : ''}
+    </div>
+  `;
+
+  el.addEventListener('dragstart', e => {
+    dragId = task.id;
+    setTimeout(() => el.classList.add('dragging'), 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    dragId = null;
+    document.querySelectorAll('.cards-area').forEach(a => a.classList.remove('drag-active'));
+    document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-over'));
+  });
+
+  return el;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ═══════════════════════════════════════════
+   DRAG & DROP
+═══════════════════════════════════════════ */
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const col = e.currentTarget;
+  col.classList.add('drag-over');
+  const area = col.querySelector('.cards-area');
+  if (area) area.classList.add('drag-active');
+}
+function onDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over');
+    const area = e.currentTarget.querySelector('.cards-area');
+    if (area) area.classList.remove('drag-active');
+  }
+}
+function onDrop(e, col) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const area = e.currentTarget.querySelector('.cards-area');
+  if (area) area.classList.remove('drag-active');
+  if (!dragId) return;
+  const task = tasks.find(t => t.id === dragId);
+  if (task && task.column !== col) {
+    task.column = col;
+    save();
+    renderAll();
+    showToast(`Moved to "${col === 'inprogress' ? 'In Progress' : col.charAt(0).toUpperCase()+col.slice(1)}"`);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════ */
+function openModal(col) {
+  document.getElementById('modal-backdrop').classList.remove('hidden');
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-desc').value  = '';
+  document.getElementById('f-tags').value  = '';
+  document.getElementById('f-priority').value = 'medium';
+  document.getElementById('f-urgency').value  = '3';
+  document.getElementById('f-impact').value   = '3';
+  document.getElementById('f-deadline').value = '';
+  document.getElementById('f-column').value = col || 'todo';
+  setTimeout(() => document.getElementById('f-title').focus(), 100);
+}
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.add('hidden');
+}
+function closeModalOnBackdrop(e) {
+  if (e.target === document.getElementById('modal-backdrop')) closeModal();
+}
+
+function addTask() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { document.getElementById('f-title').focus(); showToast('Please enter a title!'); return; }
+  const task = {
+    id: uid(),
+    title,
+    desc:     document.getElementById('f-desc').value.trim(),
+    priority: document.getElementById('f-priority').value,
+    urgency:  +document.getElementById('f-urgency').value,
+    impact:   +document.getElementById('f-impact').value,
+    deadline: document.getElementById('f-deadline').value,
+    tags:     document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    column:   document.getElementById('f-column').value,
+    created:  Date.now()
+  };
+  tasks.unshift(task);
+  save();
+  renderAll();
+  closeModal();
+  showToast('Task created! Score: ' + calcScore(task));
+}
+
+function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  tasks = tasks.filter(t => t.id !== id);
+  save();
+  renderAll();
+  showToast('Task deleted.');
+}
+
+/* ═══════════════════════════════════════════
+   SEARCH
+═══════════════════════════════════════════ */
+document.getElementById('search-input').addEventListener('input', e => {
+  searchQuery = e.target.value.trim().toLowerCase();
+  renderAll();
+});
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* Keyboard shortcut: N = new task */
+document.addEventListener('keydown', e => {
+  if (e.key === 'n' && !['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) openModal();
+  if (e.key === 'Escape') closeModal();
+});
+
+/* Init */
+renderAll();
+</script>
+</body>
+</html>
