@@ -34,10 +34,6 @@ through a visual Kanban workflow.
 
 ## Project Structure
 
-Update this section to match your actual files.
-
-Example, if you have separated the code:
-
 - `index.html` — Page structure
 - `style.css` — Styling and responsive layout
 - `script.js` — Task management and application logic
